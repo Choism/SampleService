@@ -22,130 +22,202 @@ import android.widget.Button;
 
 public class MainActivity extends AppCompatActivity {
 
-        SensorManager mSM;
-        Sensor mRotationVector;
-        Sensor mLinearAcc;
+    SensorManager mSM;
+    Sensor mRotationVector;
+    Sensor mLinearAcc;
 
 
-        NotificationManager mNM;
+    NotificationManager mNM;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        mSM = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        mRotationVector = mSM.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        mLinearAcc = mSM.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
 
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            setContentView(R.layout.activity_main);
-            mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-            mRotationVector = mSM.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-            mLinearAcc = mSM.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        mNM = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 
-            mNM = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-            Button btn = (Button) findViewById(R.id.btn_send);
-            btn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    sendNotification();
-                }
-            });
-        }
-
-        private int id = 0;
-        int messageCount = 0;
-
-        private void sendNotification() {
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-            builder.setSmallIcon(android.R.drawable.ic_dialog_info);
-            builder.setTicker("sample notification");
-            builder.setContentTitle("notification title" + messageCount);
-            builder.setContentText("notification test..." + messageCount);
-            builder.setWhen(System.currentTimeMillis());
-
-            Intent intent = new Intent(this, NotifyActivity.class);
-            intent.setData(Uri.parse("myscheme://" + getPackageName() + "/" + id));
-            intent.putExtra("count", messageCount);
-            intent.putExtra("id", id);
-            PendingIntent pi = PendingIntent.getActivity(this, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT);
-            builder.setContentIntent(pi);
-            builder.setDefaults(NotificationCompat.DEFAULT_ALL);
-            builder.setAutoCancel(true);
-
-            Intent cancelIntent = new Intent(this, CancelService.class);
-            PendingIntent cancelpi = PendingIntent.getService(this, 0, cancelIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-            builder.setDeleteIntent(cancelpi);
-
-            Notification notification = builder.build();
-
-            mNM.notify(id, notification);
-            id++;
-            messageCount++;
-        }
-
-        @Override
-        protected void onStart() {
-            super.onStart();
-            mSM.registerListener(mListener, mRotationVector, SensorManager.SENSOR_DELAY_GAME);
-            mSM.registerListener(mListener, mLinearAcc, SensorManager.SENSOR_DELAY_GAME);
-        }
-
-        @Override
-        protected void onStop() {
-            super.onStop();
-            mSM.unregisterListener(mListener);
-        }
-
-        protected void onShake() {
-
-        }
-        float[] mR = new float[9];
-        float[] mOrientation = new float[3];
-        float oldX = 0;
-        private static final float DELTA = 0.5f;
-        int count = 0;
-        private static final int THREAHOLD = 3;
-        private static final int MESSAGE_SHAKE_TIMEOUT = 1;
-        private static final int TIMEOUT_SHAKE = 1000;
-        Handler mHandler = new Handler(Looper.getMainLooper()) {
+        Button btn = (Button)findViewById(R.id.btn_send);
+        btn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void handleMessage(Message msg) {
-                super.handleMessage(msg);
-                switch (msg.what) {
-                    case MESSAGE_SHAKE_TIMEOUT:
-                        count = 0;
-                        break;
-                }
+            public void onClick(View view) {
+                sendNotification();
             }
-        };
+        });
 
-        SensorEventListener mListener = new SensorEventListener() {
+        btn = (Button)findViewById(R.id.btn_progress);
+        btn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onSensorChanged(SensorEvent event) {
-                switch (event.sensor.getType()) {
-                    case Sensor.TYPE_ROTATION_VECTOR:
-                        SensorManager.getRotationMatrixFromVector(mR, event.values);
-                        SensorManager.getOrientation(mR, mOrientation);
-                        float direction = (float) Math.toDegrees(mOrientation[0]);
-                        Log.i("MainActivity", "d : " + direction);
-                        break;
-                    case Sensor.TYPE_LINEAR_ACCELERATION:
-                        float x = event.values[0];
-                        float diff = (x - oldX);
-                        if (Math.abs(diff) > DELTA && x * oldX < 0) {
-                            mHandler.removeMessages(MESSAGE_SHAKE_TIMEOUT);
-                            count++;
-                            if (count > THREAHOLD) {
-                                onShake();
-                                count = 0;
-                            } else {
-                                mHandler.sendEmptyMessageDelayed(MESSAGE_SHAKE_TIMEOUT, TIMEOUT_SHAKE);
-                            }
-                        }
-                        oldX = x;
-                }
+            public void onClick(View view) {
+                progress = 0;
+                mHandler.post(progressRunnable);
             }
+        });
 
+        btn = (Button)findViewById(R.id.btn_style);
+        btn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onAccuracyChanged(Sensor sensor, int i) {
-
+            public void onClick(View view) {
+                sendStyle();
             }
-        };
+        });
     }
+
+    private void sendStyle() {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+        builder.setSmallIcon(android.R.drawable.ic_dialog_email);
+        builder.setTicker("download");
+        NotificationCompat.BigTextStyle style = new NotificationCompat.BigTextStyle();
+        style.bigText("An intent to launch instead of posting the notification to the status bar. Only for use with extremely high-priority notifications demanding the user's immediate attention, such as an incoming phone call or alarm clock that the user has explicitly set to a particular time. If this facility is used for something else, please give the user an option to turn it off and use a normal notification, as this can be extremely disruptive.\n" +
+                "\n" +
+                "The system UI may choose to display a heads-up notification, instead of launching this intent, while the user is using the device.");
+        builder.setContentTitle("big text");
+        builder.setStyle(style);
+
+        Intent preIntent = new Intent(this, CancelService.class);
+        PendingIntent pi = PendingIntent.getService(this, 0, preIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.addAction(android.R.drawable.ic_dialog_alert, "PREV", pi);
+
+        mNM.notify(id, builder.build());
+    }
+
+    private void sendProgress(int progress) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+        builder.setSmallIcon(android.R.drawable.ic_dialog_email);
+        builder.setTicker("download");
+        builder.setContentTitle("file download : " + progress);
+        builder.setProgress(100, progress, false);
+
+        builder.setDefaults(NotificationCompat.DEFAULT_ALL);
+        builder.setOngoing(true);
+        builder.setOnlyAlertOnce(true);
+
+        mNM.notify(PROGRESS_ID, builder.build());
+    }
+
+    private static final int PROGRESS_ID = 100;
+
+    int progress = 0;
+    Runnable progressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (progress <= 100) {
+                sendProgress(progress);
+                progress += 10;
+                mHandler.postDelayed(this, 500);
+            } else {
+                mNM.cancel(PROGRESS_ID);
+            }
+        }
+    };
+
+    private int id = 0;
+    int messageCount = 0;
+    private void sendNotification() {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+        builder.setSmallIcon(android.R.drawable.ic_dialog_info);
+        builder.setTicker("sample notification");
+        builder.setContentTitle("notification title" + messageCount);
+        builder.setContentText("notification test..." + messageCount);
+        builder.setWhen(System.currentTimeMillis());
+
+        Intent[] intents = new Intent[2];
+        intents[0] = new Intent(this, MainActivity.class);
+        intents[0].addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent intent = new Intent(this, NotifyActivity.class);
+        intent.setData(Uri.parse("myscheme://" + getPackageName() + "/" + id));
+        intent.putExtra("count", messageCount);
+        intent.putExtra("id", id);
+        intents[1] = intent;
+        PendingIntent pi = PendingIntent.getActivities(this, 0, intents,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setContentIntent(pi);
+        builder.setDefaults(NotificationCompat.DEFAULT_ALL);
+        builder.setAutoCancel(true);
+
+        Intent cancelIntent= new Intent(this, CancelService.class);
+        cancelIntent.putExtra("count", messageCount);
+        PendingIntent cancelpi = PendingIntent.getService(this, 0, cancelIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setDeleteIntent(cancelpi);
+
+        Intent fullIntent= new Intent(this, NotifyActivity.class);
+        PendingIntent fpi = PendingIntent.getActivity(this, 0, fullIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setFullScreenIntent(fpi, true);
+
+        Notification notification = builder.build();
+
+        mNM.notify(id, notification);
+        messageCount++;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mSM.registerListener(mListener, mRotationVector, SensorManager.SENSOR_DELAY_GAME);
+        mSM.registerListener(mListener, mLinearAcc, SensorManager.SENSOR_DELAY_GAME);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mSM.unregisterListener(mListener);
+    }
+
+    protected void onShake() {
+
+    }
+
+    float[] mR = new float[9];
+    float[] mOrientation = new float[3];
+    float oldX = 0;
+    private static final float DELTA = 0.5f;
+    int count = 0;
+    private static final int THREAHOLD = 3;
+    private static final int MESSAGE_SHAKE_TIMEOUT = 1;
+    private static final int TIMEOUT_SHAKE = 1000;
+    Handler mHandler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case MESSAGE_SHAKE_TIMEOUT :
+                    count = 0;
+                    break;
+            }
+        }
+    };
+
+    SensorEventListener mListener = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            switch (event.sensor.getType()) {
+                case Sensor.TYPE_ROTATION_VECTOR :
+                    SensorManager.getRotationMatrixFromVector(mR, event.values );
+                    SensorManager.getOrientation(mR, mOrientation);
+                    float direction = (float)Math.toDegrees(mOrientation[0]);
+                    Log.i("MainActivity", "d : " + direction);
+                    break;
+                case Sensor.TYPE_LINEAR_ACCELERATION :
+                    float x = event.values[0];
+                    float diff = (x - oldX);
+                    if (Math.abs(diff) > DELTA && x * oldX < 0) {
+                        mHandler.removeMessages(MESSAGE_SHAKE_TIMEOUT);
+                        count++;
+                        if (count >THREAHOLD) {
+                            onShake();
+                            count = 0;
+                        } else {
+                            mHandler.sendEmptyMessageDelayed(MESSAGE_SHAKE_TIMEOUT, TIMEOUT_SHAKE);
+                        }
+                    }
+                    oldX = x;
+            }
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int i) {
+
+        }
+    };
+}
